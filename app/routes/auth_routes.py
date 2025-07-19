@@ -1,5 +1,7 @@
 from flask import Blueprint, request, jsonify
 from app.services.auth_service import register_user, authenticate_user
+from twilio.rest import Client  # Importa la librería de Twilio
+import os  # Importa os para acceder a las variables de entorno
 
 # Crea un Blueprint para las rutas de autenticación
 auth_bp = Blueprint('auth', __name__)
@@ -52,3 +54,59 @@ def login():
         # Manejo de otros errores inesperados
         print(f"Error durante el inicio de sesión: {e}")
         return jsonify({'success': False, 'message': 'Error interno del servidor durante el inicio de sesión.'}), 500
+
+---
+
+### **Nueva Ruta para Envío de Alerta SOS**
+
+```python
+@auth_bp.route('/send_sos', methods=['POST'])
+def send_sos():
+    data = request.get_json()
+    if not data:
+        return jsonify({"message": "No data provided"}), 400
+
+    user_name = data.get('userName')
+    location_info = data.get('location') # Esto será tu "Lat: X, Lon: Y" desde Flutter
+
+    if not user_name or not location_info:
+        return jsonify({"message": "Missing user name or location"}), 400
+
+    # Obtener credenciales de Twilio y el número de contacto de emergencia de las variables de entorno
+    # IMPORTANTE: Asegúrate de configurar estas variables en Render.com
+    account_sid = os.environ.get('TWILIO_ACCOUNT_SID')
+    auth_token = os.environ.get('TWILIO_AUTH_TOKEN')
+    twilio_phone_number = os.environ.get('TWILIO_PHONE_NUMBER') # El número de Twilio
+    emergency_contact_number = os.environ.get('EMERGENCY_CONTACT_NUMBER') # ¡Tu número: +51982962559!
+
+    if not all([account_sid, auth_token, twilio_phone_number, emergency_contact_number]):
+        print("ERROR: Credenciales de Twilio o número de contacto de emergencia no configurados en el backend.")
+        return jsonify({"message": "Server configuration error for SOS service"}), 500
+
+    try:
+        client = Client(account_sid, auth_token)
+
+        message_body = f"¡ALERTA SOS! Nombre: {user_name}. Ubicación: {location_info}. "
+
+        # Intentar añadir enlace de Google Maps si la ubicación es válida
+        if "Lat:" in location_info and "Lon:" in location_info:
+            try:
+                lat = location_info.split('Lat: ')[1].split(',')[0].strip()
+                lon = location_info.split('Lon: ')[1].strip()
+                maps_link = f"[https://www.google.com/maps/search/?api=1&query=](https://www.google.com/maps/search/?api=1&query=){lat},{lon}"
+                message_body += f" Ver en mapa: {maps_link}"
+            except Exception as e:
+                print(f"Error al parsear ubicación para mapa: {e}")
+                # Si falla el parseo, el mensaje sigue sin el enlace al mapa
+
+        message = client.messages.create(
+            to=emergency_contact_number, # ¡Aquí se envía el SMS a TU número!
+            from_=twilio_phone_number,   # Desde el número de Twilio
+            body=message_body
+        )
+        print(f"Mensaje SOS enviado: {message.sid}")
+        return jsonify({"message": "SOS alert sent successfully via SMS Gateway", "sid": message.sid}), 200
+
+    except Exception as e:
+        print(f"Error al enviar SMS SOS: {e}")
+        return jsonify({"message": f"Failed to send SOS alert: {str(e)}"}), 500
