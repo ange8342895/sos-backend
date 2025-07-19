@@ -15,7 +15,13 @@ def create_app():
     # ¡Asegúrate de que esta línea esté presente y usa la clave que generaste!
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', '112797003c2d7b23df51f5ad3b4454a02ce1b9c71136876e')
 
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
+    # Asegúrate de que DATABASE_URL exista en Render.
+    # Esto reemplaza 'postgres://' por 'postgresql+pg8000://' si es necesario.
+    database_url = os.environ.get('DATABASE_URL')
+    if database_url and database_url.startswith('postgres://'):
+        app.config['SQLALCHEMY_DATABASE_URI'] = database_url.replace('postgres://', 'postgresql+pg8000://', 1)
+    else:
+        app.config['SQLALCHEMY_DATABASE_URI'] = database_url # Si ya es postgresql:// o no existe
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
     db.init_app(app)
