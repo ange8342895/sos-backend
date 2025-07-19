@@ -55,11 +55,11 @@ def login():
         print(f"Error durante el inicio de sesión: {e}")
         return jsonify({'success': False, 'message': 'Error interno del servidor durante el inicio de sesión.'}), 500
 
----
+
 
 ### **Nueva Ruta para Envío de Alerta SOS**
 
-```python
+
 @auth_bp.route('/send_sos', methods=['POST'])
 def send_sos():
     data = request.get_json()
