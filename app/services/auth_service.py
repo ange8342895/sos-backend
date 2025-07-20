@@ -1,37 +1,37 @@
-from app.models.user_model import User
-from app.utils.security import hash_password, verify_password, generate_jwt
-from app.utils.validations import is_valid_email, is_strong_password
+# app/services/auth_service.py
+from werkzeug.security import generate_password_hash, check_password_hash
+from app.models.user_model import User # Asegúrate que esto apunte a tu modelo de usuario
+from flask_jwt_extended import create_access_token
+import datetime
 
-def register_user(email, password, first_name, last_name, gender=None, photo_base64=None):
-    # Validaciones de entrada
-    if not is_valid_email(email):
-        raise ValueError('Correo electrónico no válido.')
-    if not is_strong_password(password):
-        raise ValueError('La contraseña debe tener al menos 8 caracteres, incluyendo mayúsculas, minúsculas, números y símbolos.')
-
-    # Verifica si el correo ya está registrado
+# Función para registrar un nuevo usuario
+def register_user(email, password, first_name, last_name, gender, photo_base64):
+    # Verificar si el usuario ya existe
     if User.find_by_email(email):
         raise ValueError('El correo electrónico ya está registrado.')
 
-    # Hashea la contraseña antes de guardarla
-    hashed_pw = hash_password(password)
+    # Hashear la contraseña antes de guardar
+    password_hash = generate_password_hash(password)
 
-    # En un proyecto real, 'photo_base64' se subiría a un servicio de almacenamiento
-    # (como AWS S3, Cloudinary) y la URL resultante se guardaría.
-    # Aquí, la guardamos directamente como base64 o None si no se proporciona.
-    profile_photo_url = photo_base64 if photo_base64 else None
+    # Crear el nuevo usuario en la base de datos
+    new_user = User.create(
+        email=email,
+        password_hash=password_hash,
+        first_name=first_name,
+        last_name=last_name,
+        gender=gender,
+        profile_photo_url=photo_base64 # Asumiendo que photo_base64 es la URL final o el dato en sí
+    )
+    return new_user.to_dict()
 
-    # Crea el nuevo usuario en la "base de datos" simulada
-    new_user = User.create(email, hashed_pw, first_name, last_name, gender, profile_photo_url)
-    return new_user.to_dict() # Devuelve el usuario como un diccionario
-
+# Función para autenticar un usuario
 def authenticate_user(email, password):
-    # Busca el usuario por email
     user = User.find_by_email(email)
-    # Verifica si el usuario existe y si la contraseña es correcta
-    if not user or not verify_password(password, user.password_hash):
-        raise ValueError('Credenciales inválidas.')
+    if not user or not user.check_password(password):
+        raise ValueError('Credenciales inválidas')
 
-    # Genera un token JWT para el usuario autenticado
-    token = generate_jwt(user.id)
-    return token, user.to_dict() # Devuelve el token y los datos del usuario
+    # Si las credenciales son válidas, crear un token JWT
+    expires = datetime.timedelta(days=1) # El token expira en 1 día
+    access_token = create_access_token(identity=user.id, expires_delta=expires)
+    
+    return access_token, user.to_dict()
