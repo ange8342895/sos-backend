@@ -4,8 +4,8 @@ Werkzeug==2.3.7
 bcrypt==4.0.1
 PyJWT==2.8.0
 Flask-SQLAlchemy==3.1.1
-psycopg2-binary==2.9.9 # <--- ADD THIS LINE (or a compatible version like 2.9.x)
-# pg8000==1.31.2 # <--- YOU CAN REMOVE OR COMMENT THIS OUT if you're using psycopg2-binary
+psycopg2-binary==2.9.9 # This is essential!
+# pg8000==1.31.2 # Make sure this line is REMOVED or commented out!
 gunicorn==22.0.0
 twilio==8.11.0
 Flask-JWT-Extended==4.2.1
